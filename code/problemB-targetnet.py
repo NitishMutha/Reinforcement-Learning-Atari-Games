@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gym
+import os
 from gym.envs.registration import register
 import matplotlib
 matplotlib.use('Agg')
@@ -632,6 +633,7 @@ def main(agent):
 
 
 if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = "0"
     selectedAgent = ''
 
     args = sys.argv
