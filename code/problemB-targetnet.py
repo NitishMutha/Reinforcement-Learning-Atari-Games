@@ -35,7 +35,7 @@ FRAME_STACK = 4
 DAMPING_FACTOR = 0.99
 
 BATCH = 32
-LEARNING_RATES = [0.001]  # [0.001, 0.0001, 0.00001, 0.01, 0.1, 0.5]
+LEARNING_RATES = [0.0001]  # [0.001, 0.0001, 0.00001, 0.01, 0.1, 0.5]
 HIDDEN_LAYER = 100
 
 RELOAD_BUFFER = False
@@ -45,7 +45,8 @@ SAVE_PLOT = True
 MODE = 1
 LOG_PATH = '../summary/problemBpong'
 
-#writer = tf.summary.FileWriter(LOG_PATH)
+
+# writer = tf.summary.FileWriter(LOG_PATH)
 
 
 class Brain:
@@ -61,11 +62,14 @@ class Brain:
                                                          name='next_state_vectors'), tf.float32)
 
         with tf.variable_scope('q_network'):
-            self.Q = self.get_q_network(self.state_vectors, n_actions)
+            states = tf.transpose(tf.reshape(self.state_vectors, [-1, FRAME_STACK, IMAGE_DIM, IMAGE_DIM]), [0, 2, 3, 1])
+            self.Q = self.get_q_network(states, n_actions)
 
         with tf.variable_scope('target_network'):
+            states = tf.transpose(tf.reshape(self.next_state_vectors, [-1, FRAME_STACK, IMAGE_DIM, IMAGE_DIM]),
+                                  [0, 2, 3, 1])
             self.target_network = tf.stop_gradient(
-                self.get_q_network(self.next_state_vectors, n_actions))
+                self.get_q_network(states, n_actions))
 
         self.predict = tf.argmax(self.Q, 1)
         self.predict_target_network = tf.argmax(self.target_network, 1)
@@ -93,8 +97,8 @@ class Brain:
                 self.target_network_update.append(update_op)
             self.target_network_update = tf.group(*self.target_network_update)
 
-        #tf.summary.scalar("loss", self.loss)
-        #self.merged_summary = tf.summary.merge_all()
+        # tf.summary.scalar("loss", self.loss)
+        # self.merged_summary = tf.summary.merge_all()
 
         self.tf_init = tf.global_variables_initializer()
         self.saver = tf.train.Saver()
@@ -106,7 +110,7 @@ class Brain:
         conv1 = tf.layers.conv2d(
             inputs=input_layer,
             filters=32,
-            strides=(4,4),
+            strides=(4, 4),
             kernel_size=8,
             padding="valid",
             activation=tf.nn.relu)
@@ -122,7 +126,7 @@ class Brain:
         conv3 = tf.layers.conv2d(
             inputs=conv1,
             filters=64,
-            strides=(1,1),
+            strides=(1, 1),
             kernel_size=3,
             padding="valid",
             activation=tf.nn.relu)
@@ -208,11 +212,11 @@ class Agent:
             I = I[35:195]  # crop
             I[I == 144] = 0  # erase background (background type 1)
             I[I == 109] = 0  # erase background (background type 2)
-            I = adjust_gamma(I,2,1)
+            I = adjust_gamma(I, 2, 1)
             I = resize(I, (120, 120), mode='reflect')
             I = resize(I, (90, 90), mode='reflect')
-            #I = resize(I, (60, 60), mode='reflect')
-            #I = resize(I, (40, 40), mode='reflect')
+            # I = resize(I, (60, 60), mode='reflect')
+            # I = resize(I, (40, 40), mode='reflect')
             I = resize(I, (IMAGE_DIM, IMAGE_DIM), mode='reflect', preserve_range=True)
             I = rgb2gray(I)
             return I.astype(np.float32).ravel()
@@ -222,12 +226,12 @@ class Agent:
             I[I == 136] = 0  # erase background (background type 2)
             I = resize(I, (160, 160), mode='reflect')
             I = resize(I, (128, 128), mode='reflect')
-            #I = resize(I, (64, 64), mode='reflect')
+            # I = resize(I, (64, 64), mode='reflect')
             I = resize(I, (IMAGE_DIM, IMAGE_DIM), mode='reflect', preserve_range=True)
             I = rgb2gray(I)
             return I.astype(np.float32).ravel()
         elif AGENT == AGENT_BOXING:
-            I = I[35:178,10:153]  # crop
+            I = I[35:178, 10:153]  # crop
             I[I == 156] = 0  # erase background (background type 1)
             I[I == 66] = 0  # erase background (background type 2)
             I = adjust_gamma(I, 1, 2)
@@ -271,7 +275,8 @@ class Agent:
                     allExperitmentLengths.append([t + 1])
                     allScore.append(score)
                     break
-        return np.mean(allRewards), np.mean(allExperitmentLengths), np.std(allRewards), np.std(allExperitmentLengths), np.mean(allScore), np.std(allScore)
+        return np.mean(allRewards), np.mean(allExperitmentLengths), np.std(allRewards), np.std(
+            allExperitmentLengths), np.mean(allScore), np.std(allScore)
 
     # save state
     def createBuffer(self, sess, maxIterations):
@@ -285,7 +290,7 @@ class Agent:
                 if RENDER_AGENT:
                     self.env.render()
 
-                #action, _ = self.brain.predict_Q(sess, np.reshape(state, (1, -1)))
+                # action, _ = self.brain.predict_Q(sess, np.reshape(state, (1, -1)))
                 action = [self.env.action_space.sample()]
                 next_obs, reward, done, _ = self.env.step(action[0])
                 next_obs_processed = self.preprocess(next_obs)
@@ -301,7 +306,7 @@ class Agent:
 
                 self.memory.add((state, action[0], reward, next_state))
 
-                #state = next_state
+                # state = next_state
 
                 if len(self.memory.experienceBuffer) == EXPERIENCE_BUFFER:
                     return
@@ -345,7 +350,7 @@ class Agent:
 
         with tf.Session() as sess:
             sess.run(self.brain.tf_init)
-            #writer.add_graph(sess.graph)
+            # writer.add_graph(sess.graph)
 
             frame_counts = []
             std_frame_counts = []
@@ -380,15 +385,13 @@ class Agent:
 
                         if RENDER_AGENT: self.env.render()
 
-
-
                         # Exploration by e-greedy
                         if np.random.rand(1) < self.EPSILON:
                             action[0] = self.env.action_space.sample()
 
                         if self.EPSILON > 0.1:
                             global_steps += 1
-                            self.EPSILON = self.DAMPING_FACTOR**(global_steps / decay_steps)
+                            self.EPSILON = self.DAMPING_FACTOR ** (global_steps / decay_steps)
                         else:
                             self.EPSILON = 0.1
 
@@ -435,14 +438,14 @@ class Agent:
                         Q_target = np.copy(Q)
 
                         Q_update = rewards + self.DAMPING_FACTOR * np.max(next_Q, 1)
-                        #Q_update2 = list(map(lambda x, y: y if y == -1 else x, Q_update, rewards))
+                        # Q_update2 = list(map(lambda x, y: y if y == -1 else x, Q_update, rewards))
 
                         Q_target2 = self.get_next_target(actions, Q_target, Q_update)
 
                         # train and compute gradients
                         _, agent_loss = self.brain.train(sess, x=np.reshape(states, (BATCH, -1)),
-                                                                  y=Q_target2)
-                        #writer.add_summary(summary, itr)
+                                                         y=Q_target2)
+                        # writer.add_summary(summary, itr)
 
                         loss.append(agent_loss)
 
@@ -452,8 +455,9 @@ class Agent:
                         # Run evaluation after each 50k steps
                         if STEPS % SPIT_RESULTS == 0:
                             print('Evalating on agent..')
-                            agent_reward, agent_performance, std_reward, std_performance, mean_episode_score, std_episode_score = self.act(sess, 2)
-                            print(str(STEPS / SPIT_RESULTS)+'  Agent Frames: ' + str(agent_performance) +
+                            agent_reward, agent_performance, std_reward, std_performance, mean_episode_score, std_episode_score = self.act(
+                                sess, 2)
+                            print(str(STEPS / SPIT_RESULTS) + '  Agent Frames: ' + str(agent_performance) +
                                   ' Agent Reward: ' + str(agent_reward) +
                                   ' Agent Score: ' + str(mean_episode_score) +
                                   ' Agent loss: ' + str(agent_loss))
@@ -463,7 +467,8 @@ class Agent:
                             final_rewards.append(agent_reward)
                             final_score.append(mean_episode_score)
 
-                            if mean_episode_score > lastScore: self.brain.saver.save(sess, '../models/' + AGENT + '/model.ckpt')
+                            if mean_episode_score > lastScore: self.brain.saver.save(sess,
+                                                                                     '../models/' + AGENT + '/model.ckpt')
 
                         # update the target network
                         if STEPS % TARGET_NETWORK_UPDATE_RATE == 0 and itr is not 0:
@@ -495,7 +500,7 @@ class Agent:
                           title='Agent Training Score - (learning rate ' + str(LEARNING_RATE) + ')',
                           xlabel='Steps', ylabel='Score', label='score')
 
-                save_path = self.brain.saver.save(sess, '../models/'+AGENT+'/model.ckpt')
+                save_path = self.brain.saver.save(sess, '../models/' + AGENT + '/model.ckpt')
                 print('Model weights saved in file: ', save_path)
 
                 np.savez('../models/problemB/' + AGENT + '.npz', final_rewards=final_rewards,
@@ -504,10 +509,12 @@ class Agent:
             else:
                 # test mode
                 print('\n\n---Running in test mode---')
-                self.brain.saver.restore(sess, '../models/'+AGENT+'/model.ckpt')
-                agent_reward, agent_performance, std_reward, std_performance, mean_episode_score, std_episode_score  = self.act(sess, 100)
+                self.brain.saver.restore(sess, '../models/' + AGENT + '/model.ckpt')
+                agent_reward, agent_performance, std_reward, std_performance, mean_episode_score, std_episode_score = self.act(
+                    sess, 100)
                 print('Average Agent Reward: ' + str(
-                    agent_reward) + ', Average Agent performance (frame count): ' + str(agent_performance) + ', Average score: ' + str(mean_episode_score))
+                    agent_reward) + ', Average Agent performance (frame count): ' + str(
+                    agent_performance) + ', Average score: ' + str(mean_episode_score))
 
                 performance_dict = {'Avg Score (Cumulative discounted reward)': [agent_reward],
                                     'Avg Frame Counts': [agent_performance],
@@ -524,14 +531,14 @@ def plotGraph(data, label, xlabel, ylabel, title, sd=None):
     plt.plot(data, 'b', label=label, lw=2)
     if sd is not None:
         x = np.arange(0, len(data), 1)
-        plt.fill_between(x=x,y1=np.add(data,sd),y2=np.subtract(data,sd),alpha=0.4)
+        plt.fill_between(x=x, y1=np.add(data, sd), y2=np.subtract(data, sd), alpha=0.4)
     plt.grid(True)
     plt.xlabel(xlabel, fontsize=18)
     plt.ylabel(ylabel, fontsize=18)
     plt.title(title, fontsize=22, fontweight='bold')
     plt.legend()
     if SAVE_PLOT:
-        plt.savefig('../plots/'+AGENT+'/plot-' + title + '.eps', format='eps', dpi=50)
+        plt.savefig('../plots/' + AGENT + '/plot-' + title + '.eps', format='eps', dpi=50)
     else:
         plt.show()
 
@@ -629,15 +636,15 @@ if __name__ == '__main__':
 
     args = sys.argv
     if len(args) > 1:
-        selectedAgent = args[1] # agent name boxing, pacman, pong
+        selectedAgent = args[1]  # agent name boxing, pacman, pong
         if len(args) > 2:
             MODE = int(args[2])  # Question mode
         if len(args) > 3:
-            TRAIN_MODE = args[3].lower() == 'train' # train/test mode
+            TRAIN_MODE = args[3].lower() == 'train'  # train/test mode
         if len(args) > 4:
-            BATCH = int(args[4]) # batch
+            BATCH = int(args[4])  # batch
         if len(args) > 5:
-            LEARNING_RATES = [float(args[5])] # learning rate
+            LEARNING_RATES = [float(args[5])]  # learning rate
     else:
         TRAIN_MODE = True  # todo update to False
         MODE = 3
