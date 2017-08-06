@@ -17,8 +17,8 @@ from skimage.exposure import adjust_gamma
 AGENT_CARTPOLE = 'CartPole-v0'
 AGENT_CARTPOLE_300 = 'CartPole-300-v0'
 AGENT_PACMAN = 'MsPacman-v3'
-AGENT_PONG = 'Pong-v3'
-AGENT_BOXING = 'Boxing-v3'
+AGENT_PONG = 'Pong-v4'
+AGENT_BOXING = 'Boxing-v4'
 
 OBSERVATION_DIM = 2304
 IMAGE_DIM = 48
@@ -27,15 +27,16 @@ LINEAR = False
 RMS_OPTIMIZER = True
 
 RENDER_AGENT = False
+
 N_EPISODES = 1000000 #1200000  # 1 milliom
-EXPERIENCE_BUFFER = 100000#100000 #200000
-SPIT_RESULTS = 50000 #50000  # 50k
+EXPERIENCE_BUFFER = 100000
+SPIT_RESULTS = 20000 #50000  # 50k
 TARGET_NETWORK_UPDATE_RATE = 5000 #5000
 SEED = 0
 FRAME_STACK = 4
 DAMPING_FACTOR = 0.99
 
-BATCH = 32
+BATCH = 256
 LEARNING_RATES = [0.0001]  # [0.001, 0.0001, 0.00001, 0.01, 0.1, 0.5]
 HIDDEN_LAYER = 100
 
@@ -46,8 +47,7 @@ SAVE_PLOT = True
 MODE = 1
 LOG_PATH = '../summary/problemBpong'
 
-
-# writer = tf.summary.FileWriter(LOG_PATH)
+RELOAD = False
 
 
 class Brain:
@@ -80,7 +80,7 @@ class Brain:
         self.loss = tf.reduce_mean(tf.square(self.next_Q - self.Q))
 
         if RMS_OPTIMIZER:
-            self.optimize = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE, momentum=0.9,
+            self.optimize = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE, momentum=0.99,
                                                       name='trainer').minimize(
                 self.loss)
         else:
@@ -94,9 +94,10 @@ class Brain:
             target_network_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="target_network")
             for v_source, v_target in zip(q_network_variables, target_network_variables):
                 # this is equivalent to target = (1-alpha) * target + alpha * source
-                update_op = v_target.assign_sub(self.target_update_rate * (v_target - v_source))
-                self.target_network_update.append(update_op)
-            self.target_network_update = tf.group(*self.target_network_update)
+                #update_op = v_target.assign_sub(self.target_update_rate * (v_target - v_source))
+                op = v_target.assign(v_source)
+                self.target_network_update.append(op)
+            #self.target_network_update = tf.group(*self.target_network_update)
 
         # tf.summary.scalar("loss", self.loss)
         # self.merged_summary = tf.summary.merge_all()
@@ -125,7 +126,7 @@ class Brain:
             activation=tf.nn.relu)
 
         conv3 = tf.layers.conv2d(
-            inputs=conv1,
+            inputs=conv2,
             filters=64,
             strides=(1, 1),
             kernel_size=3,
@@ -185,7 +186,7 @@ class Memory:
 
 class Agent:
     DAMPING_FACTOR = 0.99
-    EPSILON = np.float32(1)
+    EPSILON = np.float32(.8)
 
     def __init__(self, env, LEARNING_RATE):
         self.env = env
@@ -353,6 +354,9 @@ class Agent:
             sess.run(self.brain.tf_init)
             # writer.add_graph(sess.graph)
 
+            if RELOAD:
+                self.brain.saver.restore(sess, '../models/' + AGENT + '/model.ckpt')
+
             frame_counts = []
             std_frame_counts = []
 
@@ -393,6 +397,7 @@ class Agent:
                         if self.EPSILON > 0.1:
                             global_steps += 1
                             self.EPSILON = self.DAMPING_FACTOR ** (global_steps / decay_steps)
+                            #print(str(self.EPSILON) + ' ' + str(global_steps) )
                         else:
                             self.EPSILON = 0.1
 
@@ -408,7 +413,7 @@ class Agent:
                         reward = self.rewardClip(reward)
 
                         # save experience
-                        self.memory.add((state, action[0], reward, next_state))
+                        if itr > 20000: self.memory.add((state, action[0], reward, next_state))
 
                         # train using mini batch from experience
                         batch = self.memory.sample_episodes(BATCH)
@@ -432,8 +437,8 @@ class Agent:
                         resultant_straight_states = np.reshape(resultant_states, (BATCH, -1))
                         max_next_Q, next_Q = self.brain.predict_traget_Q(sess, resultant_straight_states)
 
-                        if np.random.rand(1) < self.EPSILON:
-                            max_next_Q[0] = self.env.action_space.sample()
+                        # if np.random.rand(1) < self.EPSILON:
+                        #     max_next_Q[0] = self.env.action_space.sample()
 
                         # experimenting
                         Q_target = np.copy(Q)
@@ -469,7 +474,7 @@ class Agent:
                             final_score.append(mean_episode_score)
 
                             if mean_episode_score > lastScore: self.brain.saver.save(sess,
-                                                                                     '../models/' + AGENT + '/model.ckpt')
+                                                                                     '../models/' + AGENT + '/model'+str(STEPS)+'.ckpt')
 
                         # update the target network
                         if STEPS % TARGET_NETWORK_UPDATE_RATE == 0 and itr is not 0:
@@ -478,9 +483,9 @@ class Agent:
 
                         STEPS += 1
 
-                        if STEPS == 1000000:
-                            LOOP_BREAK = True
-                            break
+                        # if STEPS == N_EPISODES:
+                        #     LOOP_BREAK = True
+                        #     break
 
                         if done: break
 
@@ -633,7 +638,7 @@ def main(agent):
 
 
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+    #os.environ['CUDA_VISIBLE_DEVICES'] = "1"
     selectedAgent = ''
 
     args = sys.argv
