@@ -8,6 +8,9 @@
 ##### email: nitish.mutha.16@ucl.ac.uk 
 --- 
 
+#### Untrained vs Trained   
+<img src="https://github.com/NitishMutha/Reinforcement-Learning-Atari-Games/blob/master/outputs/cartpole-default.gif" width="350">      <img src="https://github.com/NitishMutha/Reinforcement-Learning-Atari-Games/blob/master/outputs/cartpole-RL.gif" width="350">
+
 
 For each task I have added a command line API, so you can choose to run any model in either TRAIN or TEST mode. You can also select to run a model with specific configurations. In test mode code will pick models automatically based on arguments passed. For each task following are the API avaliable to execute the code from command line  
 
