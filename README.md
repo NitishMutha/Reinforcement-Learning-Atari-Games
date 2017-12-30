@@ -1,12 +1,3 @@
----
-# Advanced Topics in Machine Learning
-### Course at UCL (University College London) by Google DeepMind  
-#### COMPGI13 Assignment 3 - Reinforcement Learning - Train Atari games using OpenAI gym
----
-#### Nitish Mutha
-
-##### email: nitish.mutha.16@ucl.ac.uk 
---- 
 
 #### Untrained vs Trained   
 <img src="https://github.com/NitishMutha/Reinforcement-Learning-Atari-Games/blob/master/outputs/cartpole-default.gif" width="350">      <img src="https://github.com/NitishMutha/Reinforcement-Learning-Atari-Games/blob/master/outputs/cartpole-RL.gif" width="350">
